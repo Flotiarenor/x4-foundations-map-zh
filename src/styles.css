@@ -122,6 +122,10 @@ body {
   max-width: 90px;
 }
 
+.select--full {
+  width: 100%;
+}
+
 .legend {
   top: 14px;
   right: 14px;
@@ -226,6 +230,13 @@ body {
   text-align: center;
   color: #8fb0b6;
   font-size: 12px;
+}
+
+.tooltip-en {
+  text-align: center;
+  color: #6d8a90;
+  font-size: 11px;
+  margin-top: 1px;
 }
 
 .tooltip-sep {

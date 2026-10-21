@@ -146,6 +146,7 @@ export function hexPoints(cluster: Cluster, sector?: Sector, expand = false): st
     [cx + o, cy + c],
     [cx - o, cy + c],
     [cx - 2 * o, cy],
+    [cx - o, cy - c],
   ];
   return pts.map(([x, y]) => `${round(x)},${round(y)}`).join(" ");
 }

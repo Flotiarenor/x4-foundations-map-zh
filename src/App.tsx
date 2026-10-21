@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import galaxyJson from "./data/galaxy.json";
 import type { Galaxy, Settings } from "./types";
 import { buildModel } from "./map/model";
-import { MapCanvas, type HoverInfo } from "./map/MapCanvas";
+import { MapCanvas, initialView, type HoverInfo, type MapView } from "./map/MapCanvas";
 import { factionName, sectorRates } from "./map/resources";
 import {
   DLC_LIST,
@@ -22,6 +22,7 @@ const defaultSettings = (): Settings => ({
   showResources: true,
   showKhaakHive: false,
   showKhaakActivity: false,
+  nameMode: "zh",
   dlcs: Object.fromEntries(DLC_LIST.map((d) => [d.id, true])),
 });
 
@@ -29,23 +30,22 @@ const focusOptions = galaxy.clusters
   .flatMap((c) => c.sectors.map((s) => ({ value: s.macro, label: s.zh })))
   .sort((a, b) => a.label.localeCompare(b.label, "zh-Hans-CN"));
 
-function initialView() {
-  const w = window.innerWidth;
-  const z = w < 640 ? 2.4 : 1;
-  if (z === 1) return { zoom: 1, pan: { x: 0, y: 0 } };
-  const h = window.innerHeight - (w <= 820 ? 52 : 74);
-  return { zoom: z, pan: { x: (w * (1 - z)) / (2 * z), y: (h * (1 - z)) / (2 * z) } };
+function initialViewFor() {
+  return initialView();
 }
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [zoom, setZoom] = useState(() => initialView().zoom);
-  const [pan, setPan] = useState(() => initialView().pan);
+  const [view, setView] = useState<MapView>(() => initialViewFor());
   const [focus, setFocus] = useState<string>("none");
   const [range, setRange] = useState(2);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [pinned, setPinned] = useState<HoverInfo | null>(null);
   const tip = pinned ?? hover;
+
+  const handlePick = useCallback((info: HoverInfo | null) => {
+    setPinned((cur) => (info && cur?.sector.name === info.sector.name ? null : info));
+  }, []);
 
   const ratesBySector = useMemo(() => {
     const map = new Map<string, Record<string, number>>();
@@ -76,19 +76,13 @@ export default function App() {
           galaxy={galaxy}
           model={model}
           settings={settings}
-          zoom={zoom}
-          pan={pan}
+          view={view}
           focusSector={focus === "none" ? null : focus}
           focusRange={range}
           ratesBySector={ratesBySector}
           onHover={setHover}
-          onPick={(info) => {
-            setPinned((cur) =>
-              info && cur?.sector.name === info.sector.name ? null : info,
-            );
-          }}
-          onZoom={setZoom}
-          onPan={setPan}
+          onPick={handlePick}
+          onView={setView}
         />
 
         <div className="panel focus-panel">
@@ -181,6 +175,19 @@ export default function App() {
             <span>{UI.khaakActivity}</span>
           </label>
 
+          <div className="panel-title panel-title--gap">星区名</div>
+          <select
+            className="select select--full"
+            value={settings.nameMode}
+            onChange={(e) =>
+              set({ nameMode: e.target.value === "both" ? "both" : "zh" })
+            }
+            aria-label="星区名显示方式"
+          >
+            <option value="zh">中文</option>
+            <option value="both">英文｜中文（游戏原文）</option>
+          </select>
+
           <div className="panel-title panel-title--gap">{UI.dlcs}</div>
           {DLC_LIST.map((d) => (
             <label className="check" key={d.id}>
@@ -200,26 +207,20 @@ export default function App() {
             min={1}
             max={12}
             step={0.25}
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
+            value={view.zoom}
+            onChange={(e) => setView((v) => ({ ...v, zoom: Number(e.target.value) }))}
             aria-label="缩放"
           />
           <button
             type="button"
             className="zoom-reset"
-            onClick={() => {
-              const v = initialView();
-              setZoom(v.zoom);
-              setPan(v.pan);
-            }}
+            onClick={() => setView(initialViewFor())}
           >
             复位
           </button>
         </div>
 
-        {tip && settings.showTooltip && (
-          <TooltipCard info={tip} zoom={zoom} />
-        )}
+        {tip && settings.showTooltip && <TooltipCard info={tip} />}
       </div>
 
       <footer className="footer">
@@ -229,7 +230,7 @@ export default function App() {
   );
 }
 
-function TooltipCard({ info }: { info: HoverInfo; zoom: number }) {
+function TooltipCard({ info }: { info: HoverInfo }) {
   const { sector, cluster, clientX, clientY } = info;
   const rates = sectorRates(galaxy, sector);
   const left = Math.min(clientX + 18, window.innerWidth - 320);
@@ -245,6 +246,9 @@ function TooltipCard({ info }: { info: HoverInfo; zoom: number }) {
       onMouseEnter={() => undefined}
     >
       <div className="tooltip-name">{sector.zh}</div>
+      {sector.en && sector.en !== sector.zh && (
+        <div className="tooltip-en">{sector.en}</div>
+      )}
       <div className="tooltip-owner">{factionName(galaxy, sector.owner)}</div>
       <div className="tooltip-sep" />
       <div className="tooltip-row">

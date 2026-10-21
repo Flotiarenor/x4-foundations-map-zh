@@ -37,6 +37,7 @@ export interface Sector {
   name: string;
   macro: string;
   zh: string;
+  en: string;
   owner?: string | null;
   dlc: string;
   pos: Vec2;
@@ -57,6 +58,7 @@ export interface Cluster {
   name: string;
   macro: string;
   zh: string;
+  en: string;
   owner?: string | null;
   dlc: string;
   pos: Vec2;
@@ -83,5 +85,7 @@ export interface Settings {
   showResources: boolean;
   showKhaakHive: boolean;
   showKhaakActivity: boolean;
+  /** 星区名显示：纯中文，或游戏原文的「英文｜中文」 */
+  nameMode: "zh" | "both";
   dlcs: Record<string, boolean>;
 }
