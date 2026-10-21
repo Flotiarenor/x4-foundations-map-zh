@@ -12,14 +12,14 @@ export const RESOURCES = [
 export type ResourceId = (typeof RESOURCES)[number];
 
 export const RESOURCE_LABEL: Record<ResourceId | "sun", string> = {
-  ore: "矿石",
+  ore: "金属矿石",
   silicon: "硅",
   ice: "冰",
   hydrogen: "氢",
   helium: "氦",
   methane: "甲烷",
-  nividium: "尼维迪姆",
-  rawscrap: "废料",
+  nividium: "N矿",
+  rawscrap: "原始废料",
   sun: "日照",
 };
 
