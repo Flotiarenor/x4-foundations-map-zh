@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://flotiarenor.github.io/x4-foundations-map-zh/sitemap.xml
