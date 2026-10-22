@@ -1,8 +1,8 @@
 import type { Galaxy, Sector } from "../types";
 import { RESOURCES, RESOURCE_DIVISOR, type ResourceId } from "../i18n";
 
-/** 星区资源产出（已按原站规则归一化）。 */
-export function sectorRates(galaxy: Galaxy, sector: Sector): Record<ResourceId, number> {
+/** 星区资源的原始补货量（浮点，未归一化），用于丰度排序。 */
+export function sectorRawRates(galaxy: Galaxy, sector: Sector): Record<ResourceId, number> {
   const out = {} as Record<ResourceId, number>;
   for (const res of RESOURCES) {
     let raw = 0;
@@ -12,7 +12,17 @@ export function sectorRates(galaxy: Galaxy, sector: Sector): Record<ResourceId, 
       const volume = Math.min(region.volume, 3e7);
       raw += (region.replenish[res] ?? 0) * volume;
     }
-    const scaled = raw / RESOURCE_DIVISOR[res];
+    out[res] = raw;
+  }
+  return out;
+}
+
+/** 星区资源产出（已按原站规则归一化，用于显示）。 */
+export function sectorRates(galaxy: Galaxy, sector: Sector): Record<ResourceId, number> {
+  const raw = sectorRawRates(galaxy, sector);
+  const out = {} as Record<ResourceId, number>;
+  for (const res of RESOURCES) {
+    const scaled = raw[res] / RESOURCE_DIVISOR[res];
     out[res] = scaled <= 1000 ? Math.ceil(scaled) : 999;
   }
   return out;

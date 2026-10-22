@@ -3,7 +3,7 @@ import galaxyJson from "./data/galaxy.json";
 import type { Galaxy, Settings } from "./types";
 import { buildModel } from "./map/model";
 import { MapCanvas, initialView, type HoverInfo, type MapView } from "./map/MapCanvas";
-import { factionName, sectorRates } from "./map/resources";
+import { factionName, sectorRates, sectorRawRates } from "./map/resources";
 import {
   DLC_LIST,
   RESOURCES,
@@ -11,6 +11,7 @@ import {
   RESOURCE_LABEL,
   UI,
   qualityLabel,
+  type ResourceId,
 } from "./i18n";
 
 const galaxy = galaxyJson as unknown as Galaxy;
@@ -41,10 +42,25 @@ export default function App() {
   const [range, setRange] = useState(2);
   const [hover, setHover] = useState<HoverInfo | null>(null);
   const [pinned, setPinned] = useState<HoverInfo | null>(null);
+  const [picked, setPicked] = useState<ResourceId[]>([]);
   const tip = pinned ?? hover;
+
+  const togglePicked = useCallback((id: ResourceId) => {
+    setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  }, []);
 
   const handlePick = useCallback((info: HoverInfo | null) => {
     setPinned((cur) => (info && cur?.sector.name === info.sector.name ? null : info));
+  }, []);
+
+  const rawBySector = useMemo(() => {
+    const map = new Map<string, Record<string, number>>();
+    for (const cluster of galaxy.clusters) {
+      for (const sector of cluster.sectors) {
+        map.set(sector.name, sectorRawRates(galaxy, sector));
+      }
+    }
+    return map;
   }, []);
 
   const ratesBySector = useMemo(() => {
@@ -80,6 +96,8 @@ export default function App() {
           focusSector={focus === "none" ? null : focus}
           focusRange={range}
           ratesBySector={ratesBySector}
+          rawBySector={rawBySector}
+          picked={picked}
           onHover={setHover}
           onPick={handlePick}
           onView={setView}
@@ -119,16 +137,39 @@ export default function App() {
           <div className="panel legend">
             <div className="panel-title">{UI.legend}</div>
             <div className="legend-grid">
-              {RESOURCES.map((id) => (
-                <span
-                  key={id}
-                  className="legend-item"
-                  style={{ background: RESOURCE_COLOR[id] }}
-                >
-                  {RESOURCE_LABEL[id]}
-                </span>
-              ))}
+              {RESOURCES.map((id) => {
+                const on = picked.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`legend-item${on ? " is-on" : ""}`}
+                    style={{ background: RESOURCE_COLOR[id] }}
+                    onClick={() => togglePicked(id)}
+                    aria-pressed={on}
+                    title={on ? `取消${RESOURCE_LABEL[id]}丰度` : `显示${RESOURCE_LABEL[id]}丰度`}
+                  >
+                    {RESOURCE_LABEL[id]}
+                  </button>
+                );
+              })}
             </div>
+            <div className="legend-note">
+              {picked.length ? "按丰度着色，再点一次取消" : "点击资源显示丰度分布"}
+            </div>
+            {picked.length > 0 && (
+              <div className="legend-scale">
+                <span className="scale-label">稀疏</span>
+                {[0.35, 0.55, 0.78, 1].map((o) => (
+                  <i
+                    key={o}
+                    className="scale-chip"
+                    style={{ background: RESOURCE_COLOR[picked[0]], opacity: o }}
+                  />
+                ))}
+                <span className="scale-label">丰富</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -154,7 +195,10 @@ export default function App() {
             <input
               type="checkbox"
               checked={settings.showResources}
-              onChange={() => set({ showResources: !settings.showResources })}
+              onChange={() => {
+                set({ showResources: !settings.showResources });
+                setPicked([]);
+              }}
             />
             <span>{UI.resources}</span>
           </label>

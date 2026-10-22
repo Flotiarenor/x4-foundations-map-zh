@@ -9,7 +9,8 @@ import {
   sectorCenter,
 } from "./geometry";
 import { factionColor } from "./resources";
-import { RESOURCE_COLOR } from "../i18n";
+import { RESOURCE_COLOR, type ResourceId } from "../i18n";
+import { ResourceMarker, percentileRank } from "./markers";
 
 export const BASE_W = 500000;
 export const BASE_H = 330000;
@@ -46,6 +47,8 @@ interface Props {
   focusSector: string | null;
   focusRange: number;
   ratesBySector: Map<string, Record<string, number>>;
+  rawBySector: Map<string, Record<string, number>>;
+  picked: ResourceId[];
   onHover: (info: HoverInfo | null) => void;
   onPick: (info: HoverInfo | null) => void;
   onView: (v: MapView) => void;
@@ -59,6 +62,8 @@ export function MapCanvas({
   focusSector,
   focusRange,
   ratesBySector,
+  rawBySector,
+  picked,
   onHover,
   onPick,
   onView,
@@ -184,7 +189,9 @@ export function MapCanvas({
         focusSector={focusSector}
         focusRange={focusRange}
         ratesBySector={ratesBySector}
+        rawBySector={rawBySector}
         bounds={{ x: vx, y: vy, w, h }}
+        picked={picked}
         onHover={onHover}
         onPick={onPick}
       />
@@ -227,7 +234,9 @@ interface LayersProps {
   focusSector: string | null;
   focusRange: number;
   ratesBySector: Map<string, Record<string, number>>;
+  rawBySector: Map<string, Record<string, number>>;
   bounds: { x: number; y: number; w: number; h: number };
+  picked: ResourceId[];
   onHover: (info: HoverInfo | null) => void;
   onPick: (info: HoverInfo | null) => void;
 }
@@ -271,7 +280,9 @@ const MapLayers = memo(function MapLayers({
   focusSector,
   focusRange,
   ratesBySector,
+  rawBySector,
   bounds,
+  picked,
   onHover,
 }: LayersProps) {
   const allClusters = useMemo(
@@ -308,6 +319,21 @@ const MapLayers = memo(function MapLayers({
     }
     return acc;
   }, [clusters, ratesBySector]);
+
+  // 每种被选资源的全量原始速率分布，用来算丰度分位
+  const heatStats = useMemo(() => {
+    const out: Record<string, number[]> = {};
+    for (const id of picked) {
+      const vals: number[] = [];
+      rawBySector.forEach((r) => {
+        const v = r[id] ?? 0;
+        if (v > 0) vals.push(v);
+      });
+      vals.sort((a, b) => a - b);
+      out[id] = vals;
+    }
+    return out;
+  }, [picked, rawBySector]);
 
   const lines = useMemo(
     () =>
@@ -558,7 +584,7 @@ const MapLayers = memo(function MapLayers({
         }),
       )}
 
-      {settings.showResources && (
+      {settings.showResources && picked.length === 0 && (
         <>
           {Object.entries(chips).map(([id, parts]) => (
             <path
@@ -602,6 +628,33 @@ const MapLayers = memo(function MapLayers({
               }),
             )}
         </>
+      )}
+
+      {picked.map((id) =>
+        clusters.map((c) =>
+          c.sectors.map((s) => {
+            const raw = rawBySector.get(s.name);
+            const v = raw?.[id] ?? 0;
+            if (!v) return null;
+            const sorted = heatStats[id] ?? [];
+            const p = percentileRank(sorted, v);
+            const tier = p < 0.25 ? 0 : p < 0.5 ? 1 : p < 0.75 ? 2 : 3;
+            const [cx, cy] = sectorCenter(c, s);
+            const slots = c.sectors.length > 1 ? SLOTS_MULTI : SLOTS_SINGLE;
+            const slot = slots.find((x) => x[0] === id);
+            if (!slot) return null;
+            return (
+              <ResourceMarker
+                key={`heat-${id}-${s.name}`}
+                id={id}
+                x={cx + slot[1]}
+                y={cy + slot[2]}
+                r={[800, 1100, 1450, 1800][tier]}
+                opacity={[0.35, 0.55, 0.78, 1][tier]}
+              />
+            );
+          }),
+        ),
       )}
     </>
   );

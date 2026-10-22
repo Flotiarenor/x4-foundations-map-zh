@@ -142,11 +142,52 @@ body {
   color: #000;
   font-weight: 700;
   font-size: 11px;
+  font-family: inherit;
   text-align: center;
   padding: 2px 0;
+  border: 1px solid transparent;
   border-radius: 2px;
   overflow: hidden;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.legend-item:hover {
+  filter: brightness(1.15);
+}
+
+.legend-item.is-on {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.legend-note {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #9fb8bd;
+  text-align: center;
+}
+
+.legend-scale {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.scale-chip {
+  display: block;
+  width: 16px;
+  height: 8px;
+  border-radius: 1px;
+}
+
+.scale-label {
+  font-size: 10px;
+  color: #7d959a;
+  margin: 0 3px;
 }
 
 .settings {
